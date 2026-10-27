@@ -19,7 +19,7 @@ noise_minor_tick_step = 0.5 # deg/s
 noise_skip_time = 0.5       # seconds
 histogram_lim = [0, 6]      # min and max
 fig1_size = [960, 600]      # pixels
-fig2_size = [800, 800]      # pixels
+fig2_size = [800, 820]      # pixels
 
 # Histogram bin config
 gyro_bin_step = 0.2
@@ -93,7 +93,6 @@ def InitWorkingDir():
         os.chdir(app_dir)
 
 def GetLogFile():
-
     if log_file_entry.get() and os.path.isfile(log_file_entry.get()):
         initial_dir = os.path.dirname(log_file_entry.get())
     else:
@@ -196,7 +195,7 @@ def ProcessData(log_file, figure_type):
     if df["ControllerName"][0]:
         controller_name = str(df["ControllerName"][0])
     else:
-        controller_name = "Unknown Controlelr"
+        controller_name = "Unknown Controller"
 
     left_stick_timestamp = np.uint64(StripNaN(df["LeftStickTime"]))
     gyro_packet_idx = np.uint64(StripNaN(df["GyroPacketIndex"]))
@@ -213,10 +212,10 @@ def ProcessData(log_file, figure_type):
         title += "\n(Note: Switch controllers are not supported yet)"
 
     if figure_type == 1:
-        # Gyro rate figure
+        # Gyro polling consistency figure
         fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(fig1_size[0], fig1_size[1], "px"), layout="tight")
-        fig.suptitle(title)
-        fig.canvas.manager.set_window_title(f"{log_name} fig_rate")
+        fig.suptitle("Gyro Polling Consistency\n\n" + title)
+        fig.canvas.manager.set_window_title(f"{log_name} fig_consistency")
 
         gyro_time, gyro_interval, gyro_data = CalcIntervals(gyro_timestamp, gyro_pitch_rate, gyro_yaw_rate, gyro_roll_rate)
         if switch_controller:
@@ -257,9 +256,9 @@ def ProcessData(log_file, figure_type):
         ax.set_xlabel("Interval [ms]")
         ax.set_ylabel("Probability Density")
     else:
-        # Gyro noise figure
+        # Gyro sensor noise figure
         fig, axs = plt.subplots(nrows=3, ncols=2, figsize=(fig2_size[0], fig2_size[1], "px"), layout="tight")
-        fig.suptitle(title)
+        fig.suptitle("Gyro Sensor Noise\n\n" + title)
         fig.canvas.manager.set_window_title(f"{log_name} fig_noise")
 
         gyro_time, gyro_interval, gyro_data = CalcIntervals(gyro_timestamp, gyro_pitch_rate, gyro_yaw_rate, gyro_roll_rate)
@@ -339,7 +338,8 @@ log_file_button.grid(row=1, column=3, padx=10, pady=5, sticky=tk.E)
 figure_type_label = tk.Label(root, text="Figure Type:")
 figure_type_label.grid(row=2, column=0, columnspan=4, padx=10, pady=5, sticky=tk.W)
 
-radio_text = ["Gyro Noise (controller was stationary)", "Gyro Rate (controller was moving continuously)"]
+radio_text = ["Gyro Sensor Noise (select this if the controller was stationary)",
+              "Gyro Polling Consistency (select this if the controller was moving)"]
 radio_var = tk.StringVar(root, f"{radio_text[0]}")
 
 figure_type = tk.IntVar(root, 0)
