@@ -320,13 +320,15 @@ InitWorkingDir()
 root = tk.Tk()
 root.title("checkrate-plot")
 root.resizable(False, False)
+row = 0
 
 log_file_label = tk.Label(root, text="CSV File:")
-log_file_label.grid(row=0, column=0, columnspan=4, padx=10, pady=5, sticky=tk.W)
+log_file_label.grid(row=row, column=0, columnspan=4, padx=10, pady=5, sticky=tk.W)
+row += 1
 
 log_file_entry = tk.Entry(root, width=56)
 log_file_entry.insert(0, "")
-log_file_entry.grid(row=1, column=0, columnspan=3, padx=10, pady=5, sticky=tk.W)
+log_file_entry.grid(row=row, column=0, columnspan=3, padx=10, pady=5, sticky=tk.W)
 
 def RunGetLogFile():
     log_file = GetLogFile()
@@ -335,31 +337,29 @@ def RunGetLogFile():
         log_file_entry.insert(0, log_file)
 
 log_file_button = tk.Button(root, text="Browse", command=RunGetLogFile, width=8)
-log_file_button.grid(row=1, column=3, padx=10, pady=5, sticky=tk.E)
+log_file_button.grid(row=row, column=3, padx=10, pady=5, sticky=tk.E)
+row += 1
 
 figure_type_label = tk.Label(root, text="Figure Type:")
-figure_type_label.grid(row=2, column=0, columnspan=4, padx=10, pady=5, sticky=tk.W)
+figure_type_label.grid(row=row, column=0, columnspan=4, padx=10, pady=5, sticky=tk.W)
+row += 1
 
 radio_text = ["Gyro Sensor Noise (select this if the controller was stationary)",
               "Gyro Polling Consistency (select this if the controller was moving)"]
-radio_var = tk.StringVar(root, f"{radio_text[0]}")
+radio_var = tk.IntVar(root, 0)
 
-figure_type = tk.IntVar(root, 0)
-def UpdateFigureType():
-    figure_type.set(1 - figure_type.get())
-
-radio_button1 = tk.Radiobutton(root, text=radio_text[0], variable=radio_var, value=radio_text[0], command=UpdateFigureType)
-radio_button1.grid(row=3, column=0, columnspan=4, padx=10, pady=5, sticky=tk.W)
-
-radio_button2 = tk.Radiobutton(root, text=radio_text[1], variable=radio_var, value=radio_text[1], command=UpdateFigureType)
-radio_button2.grid(row=4, column=0, columnspan=4, padx=10, pady=5, sticky=tk.W)
+radio_button = []
+for i in range(len(radio_text)):
+    radio_button.append(tk.Radiobutton(root, text=radio_text[i], variable=radio_var, value=i))
+    radio_button[i].grid(row=row, column=0, columnspan=4, padx=10, pady=5, sticky=tk.W)
+    row += 1
 
 def RunProcessData():
     if log_file_entry.get() and os.path.isfile(log_file_entry.get()):
         log_file = os.path.abspath(log_file_entry.get())
-        ProcessData(log_file, figure_type.get())
+        ProcessData(log_file, radio_var.get())
 
 run_button = tk.Button(root, text="Generate", command=RunProcessData, width=32, height=2)
-run_button.grid(row=5, column=0, columnspan=4, padx=10, pady=10)
+run_button.grid(row=row, column=0, columnspan=4, padx=10, pady=10)
 
 root.mainloop()
