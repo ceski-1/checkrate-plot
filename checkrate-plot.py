@@ -128,7 +128,7 @@ def CalcIntervalsBasic(timestamp):
 
     return time, interval
 
-def CalcIntervals(timestamp, pitch_rate, yaw_rate, roll_rate):
+def CalcIntervals(timestamp, x, y, z):
     num_samples = len(timestamp)
     time = np.empty(num_samples, dtype=np.double)
     interval = np.empty(num_samples, dtype=np.double)
@@ -136,29 +136,29 @@ def CalcIntervals(timestamp, pitch_rate, yaw_rate, roll_rate):
 
     count = 0
     last_timestamp = timestamp[0]
-    last_pitch_rate = pitch_rate[0]
-    last_yaw_rate = yaw_rate[0]
-    last_roll_rate = roll_rate[0]
+    last_x = x[0]
+    last_y = y[0]
+    last_z = z[0]
 
     for i in range(1, num_samples):
-        if (abs(pitch_rate[i] - last_pitch_rate) < epsilon and
-            abs(yaw_rate[i] - last_yaw_rate) < epsilon and
-            abs(roll_rate[i] - last_roll_rate) < epsilon):
+        if (abs(x[i] - last_x) < epsilon and
+            abs(y[i] - last_y) < epsilon and
+            abs(z[i] - last_z) < epsilon):
             continue
 
         delta = timestamp[i] - last_timestamp
         if min_delta <= delta <= max_delta:
             time[count] = timestamp[i] * s_per_ns
             interval[count] = delta * ms_per_ns
-            temp_data[count, 0] = pitch_rate[i] * deg_per_rad
-            temp_data[count, 1] = yaw_rate[i] * deg_per_rad
-            temp_data[count, 2] = roll_rate[i] * deg_per_rad
+            temp_data[count, 0] = x[i]
+            temp_data[count, 1] = y[i]
+            temp_data[count, 2] = z[i]
             count += 1
 
         last_timestamp = timestamp[i]
-        last_pitch_rate = pitch_rate[i]
-        last_yaw_rate = yaw_rate[i]
-        last_roll_rate = roll_rate[i]
+        last_x = x[i]
+        last_y = y[i]
+        last_z = z[i]
 
     time = time[0:count]
     interval = interval[0:count]
@@ -218,6 +218,7 @@ def ProcessData(log_file, figure_type):
         fig.canvas.manager.set_window_title(f"{log_name} fig_consistency")
 
         gyro_time, gyro_interval, gyro_data = CalcIntervals(gyro_timestamp, gyro_pitch_rate, gyro_yaw_rate, gyro_roll_rate)
+        gyro_data *= deg_per_rad
         if switch_controller:
             basic_time, basic_interval = CalcIntervalsBasic(left_stick_timestamp)
         else:
@@ -262,6 +263,7 @@ def ProcessData(log_file, figure_type):
         fig.canvas.manager.set_window_title(f"{log_name} fig_noise")
 
         gyro_time, gyro_interval, gyro_data = CalcIntervals(gyro_timestamp, gyro_pitch_rate, gyro_yaw_rate, gyro_roll_rate)
+        gyro_data *= deg_per_rad
 
         for i in range(3):
             # Scatter plot
