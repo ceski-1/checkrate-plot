@@ -49,6 +49,9 @@ ms_per_ns = np.double(1e-6)
 ms_per_s = np.double(1000)
 deg_per_rad = np.double(180) / np.double(math.pi)
 pdf_x = np.linspace(noise_lim[0], noise_lim[1], 1000, dtype=np.double)
+# Switch controllers only
+samples_per_packet = 3
+samples_dup_window = samples_per_packet * 2
 
 # Explicitly define the data types
 log_data_types= {
@@ -128,8 +131,74 @@ def CalcIntervalsBasic(timestamp):
 
     return time, interval
 
+def CalcIntervalsSwitch(timestamp, x, y, z):
+    num_samples = len(timestamp)
+    if num_samples < samples_dup_window:
+        return np.double(0), np.double(0), np.double(0)
+
+    time = np.empty(num_samples, dtype=np.double)
+    interval = np.empty(num_samples, dtype=np.double)
+    temp_data = np.empty((num_samples, 3), dtype=np.double)
+
+    count = 0
+    last_timestamp = timestamp[samples_per_packet - 1]
+    num_found = 0
+    unique_x = []
+    unique_y = []
+    unique_z = []
+
+    for i in range(samples_dup_window - 1, num_samples, samples_per_packet):
+        for j in range(samples_per_packet):
+            a = i - j
+            unique_sample = True
+            for k in range(j + 1, samples_dup_window):
+                b = i - k
+                if (abs(x[a] - x[b]) < epsilon and
+                    abs(y[a] - y[b]) < epsilon and
+                    abs(z[a] - z[b]) < epsilon):
+                    unique_sample = False
+                    break
+            if unique_sample:
+                unique_x.append(x[a])
+                unique_y.append(y[a])
+                unique_z.append(z[a])
+                num_found += 1
+
+        if num_found < 1:
+            continue
+
+        delta = np.double(timestamp[i] - last_timestamp) / np.double(num_found)
+        if min_delta <= delta <= max_delta:
+            for j in range(num_found):
+                time[count] = timestamp[i] * s_per_ns
+                interval[count] = delta * ms_per_ns
+                temp_data[count, 0] = unique_x[j]
+                temp_data[count, 1] = unique_y[j]
+                temp_data[count, 2] = unique_z[j]
+                count += 1
+
+        last_timestamp = timestamp[i]
+        num_found = 0
+        unique_x = []
+        unique_y = []
+        unique_z = []
+
+    if count < 1:
+        return np.double(0), np.double(0), np.double(0)
+
+    time = time[0:count]
+    interval = interval[0:count]
+    data = np.empty((count, 3), dtype=np.double)
+    for i in range(3):
+        data[:, i] = temp_data[0:count, i]
+
+    return time, interval, data
+
 def CalcIntervals(timestamp, x, y, z):
     num_samples = len(timestamp)
+    if num_samples < 1:
+        return np.double(0), np.double(0), np.double(0)
+
     time = np.empty(num_samples, dtype=np.double)
     interval = np.empty(num_samples, dtype=np.double)
     temp_data = np.empty((num_samples, 3), dtype=np.double)
@@ -159,6 +228,9 @@ def CalcIntervals(timestamp, x, y, z):
         last_x = x[i]
         last_y = y[i]
         last_z = z[i]
+
+    if count < 1:
+        return np.double(0), np.double(0), np.double(0)
 
     time = time[0:count]
     interval = interval[0:count]
@@ -209,7 +281,7 @@ def ProcessData(log_file, figure_type):
 
     switch_controller = IsSwitchController(controller_name, gyro_packet_idx)
     if switch_controller:
-        title += "\n(Note: Switch controllers are not supported yet)"
+        title += "\n(Note: Switch controller support is experimental)"
 
     if figure_type == 1:
         # Gyro polling consistency figure
@@ -217,12 +289,13 @@ def ProcessData(log_file, figure_type):
         fig.suptitle("Gyro Polling Consistency\n\n" + title)
         fig.canvas.manager.set_window_title(f"{log_name} fig_consistency")
 
-        gyro_time, gyro_interval, gyro_data = CalcIntervals(gyro_timestamp, gyro_pitch_rate, gyro_yaw_rate, gyro_roll_rate)
-        gyro_data *= deg_per_rad
         if switch_controller:
+            gyro_time, gyro_interval, gyro_data = CalcIntervalsSwitch(gyro_timestamp, gyro_pitch_rate, gyro_yaw_rate, gyro_roll_rate)
             basic_time, basic_interval = CalcIntervalsBasic(left_stick_timestamp)
         else:
+            gyro_time, gyro_interval, gyro_data = CalcIntervals(gyro_timestamp, gyro_pitch_rate, gyro_yaw_rate, gyro_roll_rate)
             basic_time, basic_interval = CalcIntervalsBasic(gyro_timestamp)
+        gyro_data *= deg_per_rad
 
         # Scatter plot
         ax = axs[0]
@@ -262,7 +335,10 @@ def ProcessData(log_file, figure_type):
         fig.suptitle("Gyro Sensor Noise\n\n" + title)
         fig.canvas.manager.set_window_title(f"{log_name} fig_noise")
 
-        gyro_time, gyro_interval, gyro_data = CalcIntervals(gyro_timestamp, gyro_pitch_rate, gyro_yaw_rate, gyro_roll_rate)
+        if switch_controller:
+            gyro_time, gyro_interval, gyro_data = CalcIntervalsSwitch(gyro_timestamp, gyro_pitch_rate, gyro_yaw_rate, gyro_roll_rate)
+        else:
+            gyro_time, gyro_interval, gyro_data = CalcIntervals(gyro_timestamp, gyro_pitch_rate, gyro_yaw_rate, gyro_roll_rate)
         gyro_data *= deg_per_rad
 
         for i in range(3):
